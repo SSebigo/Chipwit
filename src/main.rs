@@ -1,6 +1,9 @@
 extern crate clap;
 use clap::{App, Arg};
 
+mod chipwit;
+use chipwit::Chipwit;
+
 mod rom;
 use rom::Rom;
 
@@ -20,7 +23,13 @@ fn main() {
         .value_of("path")
         .expect("Provides a path to a ROM file");
 
-    let rom = Rom::new(path);
+    let rom: Rom = Rom::new(path);
 
     println!("rom: {:?}", rom);
+
+    let mut chipwit: Chipwit = Chipwit::new();
+
+    chipwit.load_rom(&rom.data);
+
+    println!("chipwit: {:?}", chipwit);
 }
