@@ -19,14 +19,12 @@ fn main() {
         .value_of("path")
         .expect("Provides a path to a rom file");
 
-    let buffer: Vec<u8> = match rom::get_data(path) {
-        Ok(data) => data,
-        Err(err) => panic!("Unable to open or read ROM: {}", err),
-    };
+    let buffer: Vec<u8> = rom::get_data(path).expect("Returns ROM data as Vec<u8>");
 
     println!("buffer: {:?}", buffer);
 
-    let buffer_hex: Vec<String> = buffer.iter().map(|x| format!("{:#X}", x)).collect();
+    let buffer_hex: Vec<String> =
+        rom::convert_rom_data(buffer).expect("Returns buffer Vec<u8> as Vec<String>");
 
     println!("buffer_hex: {:?}", buffer_hex);
 }
