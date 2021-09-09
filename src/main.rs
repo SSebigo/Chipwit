@@ -2,6 +2,7 @@ extern crate clap;
 use clap::{App, Arg};
 
 mod rom;
+use rom::Rom;
 
 fn main() {
     let args = App::new("Chipwit")
@@ -19,12 +20,7 @@ fn main() {
         .value_of("path")
         .expect("Provides a path to a rom file");
 
-    let buffer: Vec<u8> = rom::get_data(path).expect("Returns ROM data as Vec<u8>");
+    let rom = Rom::new(path);
 
-    println!("buffer: {:?}", buffer);
-
-    let buffer_hex: Vec<String> =
-        rom::convert_rom_data(buffer).expect("Returns buffer Vec<u8> as Vec<String>");
-
-    println!("buffer_hex: {:?}", buffer_hex);
+    println!("rom: {:?}", rom);
 }
