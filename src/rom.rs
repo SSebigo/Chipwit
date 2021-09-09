@@ -11,7 +11,7 @@ pub fn convert_rom_data(buffer: Vec<u8>) -> Result<Vec<String>> {
 /// Returns ROM data as ``Vec<u8>``.
 pub fn get_data(path: &str) -> Result<Vec<u8>> {
     let mut file = File::open(path)?;
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize);
 
     file.read_to_end(&mut buffer)?;
     Ok(buffer)
