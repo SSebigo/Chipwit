@@ -14,7 +14,6 @@ impl Rom {
         Self { data: data }
     }
 
-    /// Returns ROM data as ``Vec<u8>``.
     fn get_raw_data(path: &str) -> Result<Vec<u8>> {
         let mut file = File::open(path)?;
         let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize);
