@@ -12,13 +12,13 @@ fn main() {
                 .long("path")
                 .required(true)
                 .takes_value(true)
-                .help("Provides a path to a rom file"),
+                .help("Provides path to ROM file"),
         )
         .get_matches();
 
     let path = args
         .value_of("path")
-        .expect("Provides a path to a rom file");
+        .expect("Provides a path to a ROM file");
 
     let rom = Rom::new(path);
 
