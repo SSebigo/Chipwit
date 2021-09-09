@@ -6,6 +6,9 @@ pub const VIDEO_SIZE: usize = 64 * 32;
 
 pub const START_ADDRESS: usize = 0x200;
 
+use crate::fontset::{FONTSET, FONTSET_SIZE, FONTSET_START_ADDRESS};
+use crate::rom::Rom;
+
 /// More or less accurate representation of the CHIP-8 structure.
 #[derive(Debug, Default)]
 pub struct Chipwit {
@@ -35,13 +38,21 @@ impl Chipwit {
         }
     }
 
-    pub fn load_rom(&mut self, rom_data: &Vec<u8>) {
-        let rom_size = rom_data.len();
+    pub fn load_rom(&mut self, path: &str) {
+        let rom: Rom = Rom::new(path);
 
-        println!("rom_size: {}", rom_size);
+        println!("rom: {:?}", rom);
 
-        for i in 0..rom_size {
-            self.memory[START_ADDRESS + i] = rom_data[i];
+        let dataset_size = rom.data.len();
+
+        for i in 0..dataset_size {
+            self.memory[START_ADDRESS + i] = rom.data[i];
+        }
+    }
+
+    pub fn load_font(&mut self) {
+        for i in 0..FONTSET_SIZE {
+            self.memory[FONTSET_START_ADDRESS + i] = FONTSET[i];
         }
     }
 }
