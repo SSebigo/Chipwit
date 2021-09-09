@@ -9,12 +9,12 @@ pub struct Rom {
 
 impl Rom {
     pub fn new(path: &str) -> Rom {
-        let data: Vec<u8> = Self::get_raw_data(path).expect("Returns ROM raw data");
+        let data: Vec<u8> = Self::read_rom_file(path).expect("Returns ROM data");
 
         Self { data: data }
     }
 
-    fn get_raw_data(path: &str) -> Result<Vec<u8>> {
+    fn read_rom_file(path: &str) -> Result<Vec<u8>> {
         let mut file = File::open(path)?;
         let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize);
 
