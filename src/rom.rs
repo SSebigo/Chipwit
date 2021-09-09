@@ -9,21 +9,20 @@ pub struct Rom {
 
 impl Rom {
     pub fn new(path: &str) -> Rom {
-        let buffer: Vec<u8> = Self::get_data(path).expect("Returns ROM data as Vec<u8>");
+        let buffer: Vec<u8> = Self::get_raw_data(path).expect("Returns ROM raw data");
         let buffer_hex: Vec<String> =
-            Self::convert_rom_data(&buffer).expect("Returns buffer Vec<u8> as Vec<String>");
+            Self::convert_to_hex(buffer).expect("Returns buffer raw data as hex data");
 
         Self { data: buffer_hex }
     }
 
-    /// Takes ``Vec<u8>`` data and convert it to ``Vec<String>``
-    /// Essentially converting ``base 10`` vector to ``hex`` vector.
-    fn convert_rom_data(buffer: &Vec<u8>) -> Result<Vec<String>> {
+    /// Takes raw data and convert it to hex values.
+    fn convert_to_hex(buffer: Vec<u8>) -> Result<Vec<String>> {
         Ok(buffer.iter().map(|x| format!("{:#X}", x)).collect())
     }
 
     /// Returns ROM data as ``Vec<u8>``.
-    fn get_data(path: &str) -> Result<Vec<u8>> {
+    fn get_raw_data(path: &str) -> Result<Vec<u8>> {
         let mut file = File::open(path)?;
         let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize);
         file.read_to_end(&mut buffer)?;
