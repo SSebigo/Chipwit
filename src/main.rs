@@ -15,13 +15,11 @@ fn main() {
                 .long("path")
                 .required(true)
                 .takes_value(true)
-                .help("Provides path to ROM file"),
+                .help("Provide path to your ROM file"),
         )
         .get_matches();
 
-    let path = args
-        .value_of("path")
-        .expect("Provides a path to a ROM file");
+    let path = args.value_of("path").expect("Provides path to ROM file");
 
     let mut chipwit: Chipwit = Chipwit::new();
 
