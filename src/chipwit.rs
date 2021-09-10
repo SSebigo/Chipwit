@@ -64,8 +64,6 @@ impl Chipwit {
     pub fn load_rom(&mut self, path: &str) {
         let rom: Rom = Rom::new(path);
 
-        println!("rom: {:?}", rom);
-
         let dataset_size = rom.data.len();
 
         for i in 0..dataset_size {
