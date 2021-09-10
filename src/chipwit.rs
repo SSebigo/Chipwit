@@ -1,3 +1,9 @@
+extern crate rand;
+use rand::{thread_rng, Rng};
+
+use crate::fontset::{FONTSET, FONTSET_SIZE, FONTSET_START_ADDRESS};
+use crate::rom::Rom;
+
 pub const REGISTER_SIZE: usize = 16;
 pub const MEMORY_SIZE: usize = 4096;
 pub const STACK_SIZE: usize = 16;
@@ -5,9 +11,6 @@ pub const KEYPAD_SIZE: usize = 16;
 pub const VIDEO_SIZE: usize = 64 * 32;
 
 pub const START_ADDRESS: usize = 0x200;
-
-use crate::fontset::{FONTSET, FONTSET_SIZE, FONTSET_START_ADDRESS};
-use crate::rom::Rom;
 
 /// More or less accurate representation of the CHIP-8 structure.
 #[derive(Debug, Default)]
@@ -23,6 +26,9 @@ pub struct Chipwit {
     pub keypad: Vec<u8>,
     pub video: Vec<u32>,
     pub opcode: u16,
+
+    /// ``CXNN`` instruction set a random number (Why?)
+    random_byte: u8,
 }
 
 impl Chipwit {
@@ -34,6 +40,7 @@ impl Chipwit {
             stack: Vec::with_capacity(STACK_SIZE),
             keypad: Vec::with_capacity(KEYPAD_SIZE),
             video: Vec::with_capacity(VIDEO_SIZE),
+            random_byte: thread_rng().gen(),
             ..Default::default()
         }
     }
