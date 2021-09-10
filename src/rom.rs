@@ -6,17 +6,17 @@ use std::{
 
 #[derive(Debug)]
 pub struct Rom {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Rom {
     pub fn new(path: &str) -> Rom {
         let data: Vec<u8> = match Self::read_rom_file(path) {
             Ok(data) => data,
-            Err(e) => {
+            Err(err) => {
                 eprintln!(
                     "Encountered an error at an unrecoverable point! Terminating. Error details: {}",
-                    e
+                    err
                 );
                 exit(0)
             }
