@@ -12,24 +12,22 @@ pub const VIDEO_SIZE: usize = 64 * 32;
 
 pub const START_ADDRESS: usize = 0x200;
 
-/// More or less accurate representation of the CHIP-8 structure.
+/// My understanding of the CHIP-8 structure.
 ///
-/// Wonder if something like that would work for more complex systems, TODO: try later.
+/// From what I've gathered the CHIP-8 strucure should contain:
+/// - 16 8-bit registers
+/// - 4kB 8-bit memory or 4096 bytes of memory
+/// - 1 16-bit Index register to store memory addresses
+/// - 1 16-bit Program Counter to store the address of the next instruction to execute
+/// - 1 8-bit stack to store Program Counter and keep track of the order of execution of calls
+/// - 1 8-bit Stack Pointer to keep track of where the last value was place in stack
+/// - 1 8-bit delay timer for logic & video timing
+/// - 1 8-bit sound timer for sound timing
+/// - 16 inputs
+/// - 1 64*32 monochrome display
 #[derive(Debug, Default)]
 pub struct Chipwit {
-    /// A register is a dedicated location on a CPU for storage.
-    ///
-    /// The CHIP-8 has sixteen 8-bit registers, labeled ``V0`` to ``VF``.
-    /// Each register can hold any value from ``0x00`` to ``0xFF``.
     pub registers: Vec<u8>,
-
-    /// The CHIP-8 has 4096 bytes of memory, address space from ``0x000`` to ``0xFFF``.
-    ///
-    /// 16 characters (0 through F) are stored from ``0x050`` to ``0x0A0``.
-    /// We need to manually put them in.
-    ///
-    /// Instructions from the ROM are stored from ``0x200`` to ``0xFFF``.
-    /// Everything after instructions space is free to use.
     pub memory: Vec<u8>,
     pub index_register: u16,
     pub program_counter: u16,
@@ -39,9 +37,13 @@ pub struct Chipwit {
     pub sound_timer: u8,
     pub keypad: Vec<u8>,
     pub video: Vec<u32>,
+
+    /// `operation code`/`machine code`/`instruction code`.
+    ///
+    /// Specifies the operation to be performed
     pub opcode: u16,
 
-    /// ``CXNN`` instruction sets a random number (Why?)
+    /// `CXNN` instruction sets a random number (Why?)
     random_byte: u8,
 }
 

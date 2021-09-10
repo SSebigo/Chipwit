@@ -1,4 +1,4 @@
-pub const FONTSET_SIZE: usize = 80;
+pub const FONTSET_SIZE: usize = 80; // 16 * 5
 pub const FONTSET_START_ADDRESS: usize = 0x50;
 pub const FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
