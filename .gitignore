@@ -17,3 +17,4 @@ Cargo.lock
 # Misc
 
 **/roms/*
+SDL2.dll
