@@ -3,7 +3,12 @@ use std::process::exit;
 extern crate clap;
 use clap::{App, Arg};
 
+mod cpu;
+mod gui;
 mod rom;
+
+use cpu::Cpu;
+use gui::Gui;
 use rom::Rom;
 
 fn main() {
@@ -29,4 +34,18 @@ fn main() {
     let rom: Rom = Rom::new(path);
 
     println!("{:?}", rom);
+
+    let cpu: Cpu = Cpu::new();
+
+    let gui: Gui = Gui::new(None, None, None, None);
+    match gui.run() {
+        Ok(()) => {}
+        Err(err) => {
+            eprintln!(
+                "Encountered an error at an unrecoverable point! Terminating. Error was: {}",
+                err
+            );
+            exit(0)
+        }
+    };
 }
