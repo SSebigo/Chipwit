@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    io::{self, Read},
-};
+use std::{fs::File, io::Read};
 
 #[derive(Debug)]
 pub struct Rom {
@@ -10,20 +7,29 @@ pub struct Rom {
 
 impl Rom {
     pub fn new(path: &str) -> Rom {
-        let data: Vec<u8> = match Self::fetch_data(path) {
-            Ok(data) => data,
-            Err(err) => panic!("{}", err),
-        };
+        let data: Vec<u8> = Self::fetch_data(path);
 
         Self { data: data }
     }
 
-    fn fetch_data(path: &str) -> io::Result<Vec<u8>> {
-        let mut file = File::open(path)?;
-        let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize);
+    fn fetch_data(path: &str) -> Vec<u8> {
+        let mut file = match File::open(path) {
+            Ok(file) => file,
+            Err(err) => panic!("{}", err),
+        };
 
-        file.read_to_end(&mut buffer)?;
+        let metadata = match file.metadata() {
+            Ok(metadata) => metadata,
+            Err(err) => panic!("{}", err),
+        };
 
-        Ok(buffer)
+        let mut buffer: Vec<u8> = Vec::with_capacity(metadata.len() as usize);
+
+        match file.read_to_end(&mut buffer) {
+            Ok(_) => (),
+            Err(err) => panic!("{}", err),
+        };
+
+        buffer
     }
 }
