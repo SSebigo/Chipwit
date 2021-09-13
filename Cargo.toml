@@ -5,6 +5,5 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
-druid = { git = "https://github.com/linebender/druid.git" }
 rand = "0.8.4"
 sdl2 = "0.34.5"
