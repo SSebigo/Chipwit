@@ -2,7 +2,7 @@ use std::{fs::File, io::Read};
 
 #[derive(Debug)]
 pub struct Rom {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Rom {

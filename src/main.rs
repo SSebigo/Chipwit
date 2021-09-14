@@ -2,8 +2,8 @@ use clap::{App, Arg};
 
 mod cpu;
 mod rom;
-mod ui;
 
+use cpu::Cpu;
 use rom::Rom;
 
 pub fn main() {
@@ -26,4 +26,10 @@ pub fn main() {
     let rom: Rom = Rom::new(path);
 
     println!("{:?}", rom);
+
+    let mut cpu = Cpu::new();
+
+    println!("{:?}", cpu);
+
+    cpu.load_data(&rom.data);
 }

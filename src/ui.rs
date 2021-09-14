@@ -39,7 +39,7 @@ impl<'a> Ui<'a> {
         };
 
         let window = match video_subsystem
-            .window(self.title, GAME_MODE_WIDTH, GAME_MODE_HEIGHT)
+            .window(self.title, self.width, self.height)
             .position_centered()
             .build()
         {
