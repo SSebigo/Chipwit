@@ -5,7 +5,7 @@ use cpu::Cpu;
 
 pub fn main() {
     let mut cpu = Cpu::new();
-    cpu.init("rom/TETRIS");
+    cpu.init("roms/TETRIS");
 
     println!("{:?}", cpu);
 

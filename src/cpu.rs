@@ -6,6 +6,7 @@ const REGISTER_SIZE: usize = 16;
 const STACK_SIZE: usize = 16;
 
 const START_ADDRESS: usize = 0x200;
+const FONT_START_ADDRESS: usize = 0x50;
 
 const FONT_SET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -65,19 +66,41 @@ impl Cpu {
     }
 
     pub fn init(&mut self, rom: &str) {
+        // Load the built-in fontset into 0x050-0x0A0
         for i in 0..FONT_SET.len() {
-            self.memory[i + 0x50] = FONT_SET[i];
+            self.memory[i + FONT_START_ADDRESS] = FONT_SET[i];
         }
 
         let buffer = Self::load_rom(rom);
         for (i, data) in buffer.iter().enumerate() {
             self.memory[i + START_ADDRESS] = *data;
         }
+
+        self.build_instruction_set();
     }
 
-    pub fn run_cycle(&mut self) {}
+    pub fn run_cycle(&mut self) {
+        // Read in the big-endian opcode word.
+        self.current_opcode =
+            (self.memory[START_ADDRESS] as u16) << 8 | (self.memory[START_ADDRESS + 1] as u16);
 
-    fn build_instruction_set(&mut self) {}
+        match self.instructions.get(&self.current_opcode) {
+            Some(instruction) => instruction(),
+            None => eprintln!("Unknown instruction: {}", self.current_opcode),
+        };
+
+        // TODO: Update sound and delay timers.
+    }
+
+    fn build_instruction_set(&mut self) {
+        self.instructions.clear();
+        self.instructions.reserve(0xFFFF);
+
+        // Clear screen
+        self.instructions.insert(0x00E0, || {});
+        // Return
+        self.instructions.insert(0x00EE, || {});
+    }
 
     fn load_rom(rom: &str) -> Vec<u8> {
         let mut file = File::open(rom).expect("Should open rom file");
@@ -91,6 +114,8 @@ impl Cpu {
 
         buffer
     }
+
+    fn clear_screen() {}
 
     // pub fn load_data(&mut self, data: &[u8]) {
     //     for (i, data_) in data.iter().enumerate() {
