@@ -115,8 +115,6 @@ impl Cpu {
         buffer
     }
 
-    fn clear_screen() {}
-
     // pub fn load_data(&mut self, data: &[u8]) {
     //     for (i, data_) in data.iter().enumerate() {
     //         self.ram[START_ADDRESS + i] = *data_;
