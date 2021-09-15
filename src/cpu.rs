@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Read};
+use std::{fs::File, io::Read};
 
 const KEYPAD_SIZE: usize = 16;
 const MEMORY_SIZE: usize = 4096;
@@ -27,14 +27,11 @@ const FONT_SET: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
-type Instruction = fn();
-
 #[derive(Debug)]
 pub struct Cpu {
     current_opcode: u16,
     // 60Hz timers.
     delay_timer: u8,
-    instructions: HashMap<u16, Instruction>,
     keypad: [u8; KEYPAD_SIZE],
     memory: [u8; MEMORY_SIZE],
     // Points to the next instruction in memory_ to execute.
@@ -56,7 +53,6 @@ impl Cpu {
             program_counter: START_ADDRESS as u16,
             register: [0; REGISTER_SIZE],
             delay_timer: 0,
-            instructions: HashMap::new(),
             keypad: [0; KEYPAD_SIZE],
             register_index: 0,
             sound_timer: 0,
@@ -75,31 +71,37 @@ impl Cpu {
         for (i, data) in buffer.iter().enumerate() {
             self.memory[i + START_ADDRESS] = *data;
         }
-
-        self.build_instruction_set();
     }
 
     pub fn run_cycle(&mut self) {
         // Read in the big-endian opcode word.
-        self.current_opcode =
+        let opcode =
             (self.memory[START_ADDRESS] as u16) << 8 | (self.memory[START_ADDRESS + 1] as u16);
 
-        match self.instructions.get(&self.current_opcode) {
-            Some(instruction) => instruction(),
-            None => eprintln!("Unknown instruction: {}", self.current_opcode),
-        };
+        let nibbles = (
+            (opcode & 0xF000) >> 12,
+            (opcode & 0x0F00) >> 8,
+            (opcode & 0x00F0) >> 4,
+            opcode & 0x000F,
+        );
+
+        let nnn: u16 = opcode & 0x0FFF;
+        let kk: u16 = opcode & 0x00FF;
+
+        match nibbles {
+            // Clear screen
+            (0x00, 0x00, 0xE0, 0x00) => {
+                self.next();
+            }
+            // Return from subroutine
+            (0x00, 0x00, 0xE0, 0xE0) => {
+                self.program_counter = self.stack[(self.stack_pointer - 1) as usize] as u16;
+                self.next()
+            }
+            _ => eprint!("Unknown instruction: {:?}", nibbles),
+        }
 
         // TODO: Update sound and delay timers.
-    }
-
-    fn build_instruction_set(&mut self) {
-        self.instructions.clear();
-        self.instructions.reserve(0xFFFF);
-
-        // Clear screen
-        self.instructions.insert(0x00E0, || {});
-        // Return
-        self.instructions.insert(0x00EE, || {});
     }
 
     fn load_rom(rom: &str) -> Vec<u8> {
@@ -115,22 +117,21 @@ impl Cpu {
         buffer
     }
 
-    // pub fn load_data(&mut self, data: &[u8]) {
-    //     for (i, data_) in data.iter().enumerate() {
-    //         self.ram[START_ADDRESS + i] = *data_;
-    //     }
+    /// Go to next instruction.
+    ///
+    /// e.g. [00, E0, A2, 2A, 60, 0C]
+    /// init -> program_counter at 0x00 | instruction = 0x00E0
+    /// [next] -> program_counter at A2 | instuction = 0xA22A
+    fn next(&mut self) {
+        self.program_counter += 2;
+    }
 
-    //     println!("{:?}", self.ram);
-    // }
-
-    // pub fn run(&mut self) {
-    //     loop {
-    //         let nibbles = (
-    //             ((self.opcode & 0xF000) >> 12) as u8,
-    //             ((self.opcode & 0x0F00) >> 8) as u8,
-    //             ((self.opcode & 0x00F0) >> 4) as u8,
-    //             (self.opcode & 0x000F) as u8,
-    //         );
-    //     }
-    // }
+    /// Skip nex instruction.
+    ///
+    /// e.g. [00, E0, A2, 2A, 60, 0C]
+    /// init -> program_counter at 00 | instruction = 0x00E0
+    /// [skip] -> program_counter at 60 | instuction = 0x600C
+    fn skip(&mut self) {
+        self.program_counter += 4;
+    }
 }
