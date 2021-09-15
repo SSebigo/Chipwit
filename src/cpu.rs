@@ -1,5 +1,7 @@
 use std::{fs::File, io::Read};
 
+use rand::Rng;
+
 const KEYPAD_SIZE: usize = 16;
 const MEMORY_SIZE: usize = 4096;
 const REGISTER_SIZE: usize = 16;
@@ -37,7 +39,7 @@ pub struct Cpu {
     // Points to the next instruction in memory_ to execute.
     program_counter: u16,
     register_index: u16,
-    register: [u16; REGISTER_SIZE],
+    register: [u8; REGISTER_SIZE],
     sound_timer: u8,
     // Points to the next empty spot in stack_.
     stack_pointer: u16,
@@ -90,111 +92,184 @@ impl Cpu {
 
         match nibbles {
             // Clear screen
-            (0x00, 0x00, 0xE0, 0x00) => self.next(),
+            (0x0, 0x0, 0xE, 0x0) => self.next(),
             // Return from subroutine
-            (0x00, 0x00, 0xE0, 0xE0) => {
+            (0x0, 0x0, 0xE, 0xE) => {
                 self.program_counter = self.stack[(self.stack_pointer - 1) as usize] as u16;
                 self.next()
             }
-            (0x10, _, _, _) => self.program_counter = nnn,
-            (0x20, _, _, _) => {
+            (0x1, _, _, _) => self.program_counter = nnn,
+            (0x2, _, _, _) => {
                 self.stack[(self.stack_pointer + 1) as usize] = self.program_counter;
                 self.program_counter = nnn;
             }
-            (0x30, _, _, _) => {
-                if self.register[nibbles.1 as usize] == kk {
+            (0x3, _, _, _) => {
+                if self.register[nibbles.1 as usize] == (kk as u8) {
                     self.skip()
                 }
                 self.next()
             }
-            (0x40, _, _, _) => {
-                if self.register[nibbles.1 as usize] != kk {
+            (0x4, _, _, _) => {
+                if self.register[nibbles.1 as usize] != (kk as u8) {
                     self.skip()
                 }
                 self.next()
             }
-            (0x50, _, _, 0x00) => {
+            (0x5, _, _, 0x0) => {
                 if self.register[nibbles.1 as usize] == self.register[nibbles.2 as usize] {
                     self.skip()
                 }
                 self.next()
             }
-            (0x60, _, _, _) => {
-                self.register[nibbles.1 as usize] = kk;
+            (0x6, _, _, _) => {
+                self.register[nibbles.1 as usize] = kk as u8;
                 self.next()
             }
-            (0x70, _, _, _) => {
-                self.register[nibbles.1 as usize] += kk;
+            (0x7, _, _, _) => {
+                self.register[nibbles.1 as usize] += kk as u8;
                 self.next()
             }
-            (0x80, _, _, 0x00) => {
+            (0x8, _, _, 0x0) => {
                 self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize];
                 self.next()
             }
-            (0x80, _, _, 0x10) => {
+            (0x8, _, _, 0x1) => {
                 let x = self.register[nibbles.1 as usize];
 
                 self.register[nibbles.1 as usize] = x | self.register[nibbles.2 as usize];
                 self.next()
             }
-            (0x80, _, _, 0x20) => {
+            (0x8, _, _, 0x2) => {
                 let x = self.register[nibbles.1 as usize];
 
                 self.register[nibbles.1 as usize] = x & self.register[nibbles.2 as usize];
                 self.next();
             }
-            (0x80, _, _, 0x30) => {
+            (0x8, _, _, 0x3) => {
                 let x = self.register[nibbles.1 as usize];
 
                 self.register[nibbles.1 as usize] = x ^ self.register[nibbles.2 as usize];
                 self.next()
             }
-            (0x80, _, _, 0x40) => {
+            (0x8, _, _, 0x4) => {
                 self.register[nibbles.1 as usize] += self.register[nibbles.2 as usize];
-                self.register[0xF] = (self.register[nibbles.1 as usize] > 0xFF) as u16;
+                self.register[0xF] = (self.register[nibbles.1 as usize] as u16 > 0xFF) as u8;
                 self.next()
             }
-            (0x80, _, _, 0x50) => {
+            (0x8, _, _, 0x5) => {
                 self.register[0xF] =
-                    (self.register[nibbles.1 as usize] < self.register[nibbles.2 as usize]) as u16;
+                    (self.register[nibbles.1 as usize] < self.register[nibbles.2 as usize]) as u8;
                 self.register[nibbles.1 as usize] -= self.register[nibbles.2 as usize];
                 self.next()
             }
-            (0x80, _, _, 0x60) => {
+            (0x8, _, _, 0x6) => {
                 self.register[0xF] = self.register[nibbles.1 as usize] & 1;
                 self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize] >> 1;
                 self.next()
             }
-            (0x80, _, _, 0x70) => {
+            (0x8, _, _, 0x7) => {
                 self.register[0xF] =
-                    (self.register[nibbles.1 as usize] > self.register[nibbles.2 as usize]) as u16;
+                    (self.register[nibbles.1 as usize] > self.register[nibbles.2 as usize]) as u8;
 
                 let res = self.register[nibbles.2 as usize] - self.register[nibbles.1 as usize];
 
                 self.register[nibbles.1 as usize] = res;
                 self.next()
             }
-            (0x80, _, _, 0xE0) => {
+            (0x8, _, _, 0xE) => {
                 self.register[0xF] = 0x80;
                 self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize] << 1;
                 self.next()
             }
-            (0x90, _, _, 0x00) => {}
-            (0xA0, _, _, _) => {}
-            (0xB0, _, _, _) => {}
-            (0xC0, _, _, _) => {}
-            (0xD0, _, _, _) => {}
-            (0xE0, _, 0x90, 0xE0) => {}
-            (0xE0, _, 0xA0, 0x10) => {}
-            (0xF0, _, 0x00, 0x70) => {}
-            (0xF0, _, 0x00, 0xA0) => {}
-            (0xF0, _, 0x10, 0x50) => {}
-            (0xF0, _, 0x10, 0x80) => {}
-            (0xF0, _, 0x10, 0xE0) => {}
-            (0xF0, _, 0x20, 0x90) => {}
-            (0xF0, _, 0x30, 0x30) => {}
-            (0xF0, _, 0x50, 0x50) => {}
-            (0xF0, _, 0x60, 0x50) => {}
+            (0x9, _, _, 0x0) => {
+                if self.register[nibbles.1 as usize] != self.register[nibbles.2 as usize] {
+                    self.skip()
+                }
+                self.next()
+            }
+            (0xA, _, _, _) => {
+                self.register[self.program_counter as usize] = nnn as u8;
+                self.next()
+            }
+            (0xB, _, _, _) => {
+                self.stack[(self.stack_pointer + 1) as usize] = self.program_counter;
+                self.program_counter = ((nnn as u8) + self.register[0x0]) as u16;
+                self.next()
+            }
+            (0xC, _, _, _) => {
+                let mut rng = rand::thread_rng();
+
+                self.register[nibbles.1 as usize] = rng.gen::<u8>() & (kk as u8);
+                self.next()
+            }
+            (0xD, _, _, _) => {
+                // Draw sprite at position x/y
+                // for i in 0..nibbles.3 {
+                //     self.register[0xF] = 01;
+                // }
+                self.next()
+            }
+            (0xE, _, 0x9, 0xE) => {
+                // Skip if register[x] is key pressed
+                self.next()
+            }
+            (0xE, _, 0xA, 0x1) => {
+                // Skip if register[x] is not key pressed
+                self.next()
+            }
+            (0xF, _, 0x0, 0x7) => {
+                self.register[nibbles.1 as usize] = self.delay_timer;
+                self.next()
+            }
+            (0xF, _, 0x0, 0xA) => {
+                // Wait for keypressed -> store key in register[x]
+                self.next()
+            }
+            (0xF, _, 0x1, 0x5) => {
+                self.delay_timer = self.register[nibbles.1 as usize];
+                self.next()
+            }
+            (0xF, _, 0x1, 0x8) => {
+                self.sound_timer = self.register[nibbles.1 as usize];
+                self.next()
+            }
+            (0xF, _, 0x1, 0xE) => {
+                self.program_counter += self.register[nibbles.1 as usize] as u16;
+                self.next()
+            }
+            (0xF, _, 0x2, 0x9) => {
+                // Set I to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                self.next()
+            }
+            (0xF, _, 0x3, 0x3) => {
+                // Set I to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+            }
+            (0xF, _, 0x5, 0x5) => {
+                let end_index = self
+                    .register
+                    .iter()
+                    .position(|&el| el as usize == nibbles.1 as usize)
+                    .expect("Should return register index");
+
+                for i in 0..end_index {
+                    self.memory[i + (self.program_counter as usize)] = self.register[i];
+                }
+                self.program_counter = self.program_counter + nibbles.1 as u16 + 1;
+                self.next()
+            }
+            (0xF, _, 0x6, 0x5) => {
+                let end_index = self
+                    .register
+                    .iter()
+                    .position(|&el| el as usize == nibbles.1 as usize)
+                    .expect("Should return register index");
+
+                for i in 0..end_index {
+                    self.register[i] = self.memory[(self.program_counter as usize) + i];
+                }
+                self.program_counter = self.program_counter + nibbles.1 as u16 + 1;
+                self.next()
+            }
             _ => eprint!("Unknown instruction: {:?}", nibbles),
         }
 
@@ -212,10 +287,6 @@ impl Cpu {
             .expect("Should read to end of file");
 
         buffer
-    }
-
-    fn jump_to(&mut self, address: u16) {
-        self.program_counter = address;
     }
 
     /// Go to next instruction.
