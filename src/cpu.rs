@@ -2,6 +2,9 @@ use std::{fs::File, io::Read};
 
 use rand::Rng;
 
+use crate::frame;
+use frame::Frame;
+
 const KEYPAD_SIZE: usize = 16;
 const MEMORY_SIZE: usize = 4096;
 const REGISTER_SIZE: usize = 16;
@@ -34,11 +37,12 @@ pub struct Cpu {
     current_opcode: u16,
     // 60Hz timers.
     delay_timer: u8,
-    keypad: [u8; KEYPAD_SIZE],
+    frame: Frame,
+    i: u16,
+    keypad: [bool; KEYPAD_SIZE],
     memory: [u8; MEMORY_SIZE],
     // Points to the next instruction in memory_ to execute.
-    program_counter: u16,
-    register_index: u16,
+    pc: u16,
     register: [u8; REGISTER_SIZE],
     sound_timer: u8,
     // Points to the next empty spot in stack_.
@@ -50,13 +54,14 @@ impl Cpu {
     pub fn new() -> Cpu {
         Self {
             current_opcode: 0,
+            delay_timer: 0,
+            frame: Frame::new(),
+            i: 0,
+            keypad: [false; KEYPAD_SIZE],
             memory: [0; MEMORY_SIZE],
             // Program memory begins at 0x200.
-            program_counter: START_ADDRESS as u16,
+            pc: START_ADDRESS as u16,
             register: [0; REGISTER_SIZE],
-            delay_timer: 0,
-            keypad: [0; KEYPAD_SIZE],
-            register_index: 0,
             sound_timer: 0,
             stack_pointer: 0,
             stack: [0; STACK_SIZE],
@@ -76,7 +81,7 @@ impl Cpu {
     }
 
     pub fn run_cycle(&mut self) {
-        let pc = self.program_counter as usize;
+        let pc = self.pc as usize;
 
         // Read in the big-endian opcode word.
         let opcode = (self.memory[pc] as u16) << 8 | (self.memory[pc + 1] as u16);
@@ -95,17 +100,19 @@ impl Cpu {
 
         match nibbles {
             // Clear screen
-            (0x0, 0x0, 0xE, 0x0) => self.next(),
-            // Return from subroutine
-            (0x0, 0x0, 0xE, 0xE) => {
-                self.program_counter = self.stack[(self.stack_pointer - 1) as usize] as u16;
+            (0x0, 0x0, 0xE, 0x0) => {
+                self.frame.set_all(0);
                 self.next()
             }
-            (0x1, _, _, _) => self.program_counter = nnn,
-            (0x2, _, _, _) => {
-                self.stack[(self.stack_pointer - 1) as usize] = self.program_counter;
-                self.program_counter = nnn;
+            // Return from subroutine
+            (0x0, 0x0, 0xE, 0xE) => {
+                self.pc = self.stack[(self.stack_pointer - 1) as usize] as u16;
                 self.next()
+            }
+            (0x1, _, _, _) => self.pc = nnn,
+            (0x2, _, _, _) => {
+                self.stack[(self.stack_pointer - 1) as usize] = self.pc;
+                self.pc = nnn;
             }
             (0x3, _, _, _) => {
                 if self.register[nibbles.1 as usize] == (kk as u8) {
@@ -138,21 +145,15 @@ impl Cpu {
                 self.next()
             }
             (0x8, _, _, 0x1) => {
-                let x = self.register[nibbles.1 as usize];
-
-                self.register[nibbles.1 as usize] = x | self.register[nibbles.2 as usize];
+                self.register[nibbles.1 as usize] |= self.register[nibbles.2 as usize];
                 self.next()
             }
             (0x8, _, _, 0x2) => {
-                let x = self.register[nibbles.1 as usize];
-
-                self.register[nibbles.1 as usize] = x & self.register[nibbles.2 as usize];
+                self.register[nibbles.1 as usize] &= self.register[nibbles.2 as usize];
                 self.next();
             }
             (0x8, _, _, 0x3) => {
-                let x = self.register[nibbles.1 as usize];
-
-                self.register[nibbles.1 as usize] = x ^ self.register[nibbles.2 as usize];
+                self.register[nibbles.1 as usize] ^= self.register[nibbles.2 as usize];
                 self.next()
             }
             (0x8, _, _, 0x4) => {
@@ -181,7 +182,7 @@ impl Cpu {
                 self.next()
             }
             (0x8, _, _, 0xE) => {
-                self.register[0xF] = 0x80;
+                self.register[0xF] = (self.register[nibbles.1 as usize] > 0x80) as u8;
                 self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize] << 1;
                 self.next()
             }
@@ -192,13 +193,11 @@ impl Cpu {
                 self.next()
             }
             (0xA, _, _, _) => {
-                self.register[self.program_counter as usize] = nnn as u8;
+                self.i = nnn;
                 self.next()
             }
             (0xB, _, _, _) => {
-                self.stack[(self.stack_pointer + 1) as usize] = self.program_counter;
-                self.program_counter = ((nnn as u8) + self.register[0x0]) as u16;
-                self.next()
+                self.pc = ((nnn as u8) + self.register[0x0]) as u16;
             }
             (0xC, _, _, _) => {
                 let mut rng = rand::thread_rng();
@@ -207,18 +206,37 @@ impl Cpu {
                 self.next()
             }
             (0xD, _, _, _) => {
-                // Draw sprite at position x/y
-                // for i in 0..nibbles.3 {
-                //     self.register[0xF] = 01;
-                // }
+                self.register[0x0f] = 0;
+
+                for byte in 0..nibbles.3 {
+                    let r = (self.register[nibbles.2 as usize] as u16 + byte)
+                        % frame::FRAME_HEIGHT as u16;
+
+                    for bit in 0..8 {
+                        let c =
+                            (self.register[nibbles.1 as usize] + bit) % frame::FRAME_WIDTH as u8;
+                        let sprite =
+                            (self.memory[(self.i as usize) + (byte as usize)] >> (7 - bit)) & 1;
+                        self.register[0xF] |= sprite & self.frame.at(c as usize, r as usize);
+                        self.frame.set_one(c as usize, r as usize, sprite);
+                    }
+                }
                 self.next()
             }
             (0xE, _, 0x9, 0xE) => {
-                // Skip if register[x] is key pressed
+                let key = self.register[nibbles.1 as usize];
+
+                if self.keypad[key as usize] {
+                    self.skip()
+                }
                 self.next()
             }
             (0xE, _, 0xA, 0x1) => {
-                // Skip if register[x] is not key pressed
+                let key = self.register[nibbles.1 as usize];
+
+                if !self.keypad[key as usize] {
+                    self.skip()
+                }
                 self.next()
             }
             (0xF, _, 0x0, 0x7) => {
@@ -226,8 +244,7 @@ impl Cpu {
                 self.next()
             }
             (0xF, _, 0x0, 0xA) => {
-                // Wait for keypressed -> store key in register[x]
-                self.next()
+                unimplemented!();
             }
             (0xF, _, 0x1, 0x5) => {
                 self.delay_timer = self.register[nibbles.1 as usize];
@@ -238,44 +255,34 @@ impl Cpu {
                 self.next()
             }
             (0xF, _, 0x1, 0xE) => {
-                self.program_counter += self.register[nibbles.1 as usize] as u16;
+                self.i += self.register[nibbles.1 as usize] as u16;
                 self.next()
             }
             (0xF, _, 0x2, 0x9) => {
-                // Set I to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                // Set i to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
                 self.next()
             }
             (0xF, _, 0x3, 0x3) => {
-                // Set I to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                // Set i to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
             }
             (0xF, _, 0x5, 0x5) => {
-                let end_index = self
-                    .register
-                    .iter()
-                    .position(|&el| el as usize == nibbles.1 as usize)
-                    .expect("Should return register index");
-
-                for i in 0..end_index {
-                    self.memory[i + (self.program_counter as usize)] = self.register[i];
+                for i in 0..nibbles.1 {
+                    self.memory[(i + self.i) as usize] = self.register[i as usize];
                 }
-                self.program_counter = self.program_counter + nibbles.1 as u16 + 1;
+                self.i = self.i + nibbles.1 as u16 + 1;
                 self.next()
             }
             (0xF, _, 0x6, 0x5) => {
-                let end_index = self
-                    .register
-                    .iter()
-                    .position(|&el| el as usize == nibbles.1 as usize)
-                    .expect("Should return register index");
-
-                for i in 0..end_index {
-                    self.register[i] = self.memory[(self.program_counter as usize) + i];
+                for i in 0..nibbles.1 {
+                    self.register[i as usize] = self.memory[(self.i + i) as usize];
                 }
-                self.program_counter = self.program_counter + nibbles.1 as u16 + 1;
+                self.i = self.i + nibbles.1 as u16 + 1;
                 self.next()
             }
             _ => eprint!("Unknown instruction: {:?}", nibbles),
         }
+
+        self.frame.draw_to_stdout();
 
         // TODO: Update sound and delay timers.
     }
@@ -299,7 +306,7 @@ impl Cpu {
     /// init -> program_counter at 0x00 | instruction = 0x00E0
     /// [next] -> program_counter at A2 | instuction = 0xA22A
     fn next(&mut self) {
-        self.program_counter += 2;
+        self.pc += 2;
     }
 
     /// Skip nex instruction.
@@ -308,6 +315,6 @@ impl Cpu {
     /// init -> program_counter at 00 | instruction = 0x00E0
     /// [skip] -> program_counter at 60 | instuction = 0x600C
     fn skip(&mut self) {
-        self.program_counter += 4;
+        self.pc += 4;
     }
 }
