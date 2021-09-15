@@ -76,9 +76,10 @@ impl Cpu {
     }
 
     pub fn run_cycle(&mut self) {
+        let pc = self.program_counter as usize;
+
         // Read in the big-endian opcode word.
-        let opcode =
-            (self.memory[START_ADDRESS] as u16) << 8 | (self.memory[START_ADDRESS + 1] as u16);
+        let opcode = (self.memory[pc] as u16) << 8 | (self.memory[pc + 1] as u16);
 
         let nibbles = (
             (opcode & 0xF000) >> 12,
@@ -90,6 +91,8 @@ impl Cpu {
         let nnn: u16 = opcode & 0x0FFF;
         let kk: u16 = opcode & 0x00FF;
 
+        println!("{:#06x}", opcode);
+
         match nibbles {
             // Clear screen
             (0x0, 0x0, 0xE, 0x0) => self.next(),
@@ -100,8 +103,9 @@ impl Cpu {
             }
             (0x1, _, _, _) => self.program_counter = nnn,
             (0x2, _, _, _) => {
-                self.stack[(self.stack_pointer + 1) as usize] = self.program_counter;
+                self.stack[(self.stack_pointer - 1) as usize] = self.program_counter;
                 self.program_counter = nnn;
+                self.next()
             }
             (0x3, _, _, _) => {
                 if self.register[nibbles.1 as usize] == (kk as u8) {
