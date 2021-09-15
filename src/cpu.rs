@@ -41,7 +41,7 @@ pub struct Cpu {
     sound_timer: u8,
     // Points to the next empty spot in stack_.
     stack_pointer: u16,
-    stack: [u8; STACK_SIZE],
+    stack: [u16; STACK_SIZE],
 }
 
 impl Cpu {
@@ -90,14 +90,111 @@ impl Cpu {
 
         match nibbles {
             // Clear screen
-            (0x00, 0x00, 0xE0, 0x00) => {
-                self.next();
-            }
+            (0x00, 0x00, 0xE0, 0x00) => self.next(),
             // Return from subroutine
             (0x00, 0x00, 0xE0, 0xE0) => {
                 self.program_counter = self.stack[(self.stack_pointer - 1) as usize] as u16;
                 self.next()
             }
+            (0x10, _, _, _) => self.program_counter = nnn,
+            (0x20, _, _, _) => {
+                self.stack[(self.stack_pointer + 1) as usize] = self.program_counter;
+                self.program_counter = nnn;
+            }
+            (0x30, _, _, _) => {
+                if self.register[nibbles.1 as usize] == kk {
+                    self.skip()
+                }
+                self.next()
+            }
+            (0x40, _, _, _) => {
+                if self.register[nibbles.1 as usize] != kk {
+                    self.skip()
+                }
+                self.next()
+            }
+            (0x50, _, _, 0x00) => {
+                if self.register[nibbles.1 as usize] == self.register[nibbles.2 as usize] {
+                    self.skip()
+                }
+                self.next()
+            }
+            (0x60, _, _, _) => {
+                self.register[nibbles.1 as usize] = kk;
+                self.next()
+            }
+            (0x70, _, _, _) => {
+                self.register[nibbles.1 as usize] += kk;
+                self.next()
+            }
+            (0x80, _, _, 0x00) => {
+                self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize];
+                self.next()
+            }
+            (0x80, _, _, 0x10) => {
+                let x = self.register[nibbles.1 as usize];
+
+                self.register[nibbles.1 as usize] = x | self.register[nibbles.2 as usize];
+                self.next()
+            }
+            (0x80, _, _, 0x20) => {
+                let x = self.register[nibbles.1 as usize];
+
+                self.register[nibbles.1 as usize] = x & self.register[nibbles.2 as usize];
+                self.next();
+            }
+            (0x80, _, _, 0x30) => {
+                let x = self.register[nibbles.1 as usize];
+
+                self.register[nibbles.1 as usize] = x ^ self.register[nibbles.2 as usize];
+                self.next()
+            }
+            (0x80, _, _, 0x40) => {
+                self.register[nibbles.1 as usize] += self.register[nibbles.2 as usize];
+                self.register[0xF] = (self.register[nibbles.1 as usize] > 0xFF) as u16;
+                self.next()
+            }
+            (0x80, _, _, 0x50) => {
+                self.register[0xF] =
+                    (self.register[nibbles.1 as usize] < self.register[nibbles.2 as usize]) as u16;
+                self.register[nibbles.1 as usize] -= self.register[nibbles.2 as usize];
+                self.next()
+            }
+            (0x80, _, _, 0x60) => {
+                self.register[0xF] = self.register[nibbles.1 as usize] & 1;
+                self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize] >> 1;
+                self.next()
+            }
+            (0x80, _, _, 0x70) => {
+                self.register[0xF] =
+                    (self.register[nibbles.1 as usize] > self.register[nibbles.2 as usize]) as u16;
+
+                let res = self.register[nibbles.2 as usize] - self.register[nibbles.1 as usize];
+
+                self.register[nibbles.1 as usize] = res;
+                self.next()
+            }
+            (0x80, _, _, 0xE0) => {
+                self.register[0xF] = 0x80;
+                self.register[nibbles.1 as usize] = self.register[nibbles.2 as usize] << 1;
+                self.next()
+            }
+            (0x90, _, _, 0x00) => {}
+            (0xA0, _, _, _) => {}
+            (0xB0, _, _, _) => {}
+            (0xC0, _, _, _) => {}
+            (0xD0, _, _, _) => {}
+            (0xE0, _, 0x90, 0xE0) => {}
+            (0xE0, _, 0xA0, 0x10) => {}
+            (0xF0, _, 0x00, 0x70) => {}
+            (0xF0, _, 0x00, 0xA0) => {}
+            (0xF0, _, 0x10, 0x50) => {}
+            (0xF0, _, 0x10, 0x80) => {}
+            (0xF0, _, 0x10, 0xE0) => {}
+            (0xF0, _, 0x20, 0x90) => {}
+            (0xF0, _, 0x30, 0x30) => {}
+            (0xF0, _, 0x50, 0x50) => {}
+            (0xF0, _, 0x60, 0x50) => {}
             _ => eprint!("Unknown instruction: {:?}", nibbles),
         }
 
@@ -115,6 +212,10 @@ impl Cpu {
             .expect("Should read to end of file");
 
         buffer
+    }
+
+    fn jump_to(&mut self, address: u16) {
+        self.program_counter = address;
     }
 
     /// Go to next instruction.
