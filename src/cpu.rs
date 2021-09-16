@@ -259,7 +259,8 @@ impl Cpu {
                 self.next()
             }
             (0xF, _, 0x2, 0x9) => {
-                // Set i to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                let digit = self.register[nibbles.1 as usize];
+                self.i = FONT_START_ADDRESS as u16 + ((5 * digit) as u16);
                 self.next()
             }
             (0xF, _, 0x3, 0x3) => {
