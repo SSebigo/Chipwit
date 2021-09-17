@@ -21,6 +21,22 @@ impl Frame {
         self.data[r][c]
     }
 
+    pub fn copy_to_rgb24(
+        &mut self,
+        dest: &mut Vec<Vec<u8>>,
+        red_scale: u8,
+        green_scale: u8,
+        blue_scale: u8,
+    ) {
+        for r in 0..self.rows {
+            for c in 0..self.cols {
+                dest[r][c * 3] = self.data[r][c] * red_scale;
+                dest[r][c * 3 + 1] = self.data[r][c] * green_scale;
+                dest[r][c * 3 + 2] = self.data[r][c] * blue_scale;
+            }
+        }
+    }
+
     pub fn draw_to_stdout(&self) {
         for r in 0..self.rows {
             for c in 0..self.cols {

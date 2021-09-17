@@ -1,33 +1,33 @@
 extern crate sdl2;
 
 use sdl2::{
-    event::Event, keyboard::Keycode, pixels::Color, render::WindowCanvas, EventPump, VideoSubsystem,
+    event::Event,
+    pixels::PixelFormatEnum,
+    render::{TextureCreator, WindowCanvas},
+    video::WindowContext,
+    EventPump,
 };
-
-const WINDOW_TITLE: &str = "Chipwit";
-const WINDOW_WIDTH: u32 = 64_u32 * 8_u32;
-const WINDOW_HEIGHT: u32 = 32_u32 * 8_u32;
 
 pub struct Ui {
     canvas: WindowCanvas,
     event_pump: EventPump,
-    video_subsystem: VideoSubsystem,
+    texture_creator: TextureCreator<WindowContext>,
 }
 
 impl Ui {
-    pub fn new() -> Self {
+    pub fn new(title: &str, width: u32, height: u32, scale: u32) -> Ui {
         let sdl_context = sdl2::init().expect("Should provide a sdl2 context");
         let video_subsystem = sdl_context
             .video()
             .expect("Should provide a sdl2 video subsystem");
 
         let window = video_subsystem
-            .window("Chipwit", WINDOW_WIDTH, WINDOW_HEIGHT)
+            .window(title, width * scale, height * scale)
             .position_centered()
             .build()
             .expect("Should provide a sdl2 window");
 
-        let mut canvas = window
+        let canvas = window
             .into_canvas()
             .build()
             .expect("Should provide a sdl2 canvas");
@@ -36,45 +36,52 @@ impl Ui {
             .event_pump()
             .expect("Should provide a sdl2 EventPump");
 
+        let texture_creator = canvas.texture_creator();
+
         Self {
-            canvas: canvas,
-            event_pump: event_pump,
-            video_subsystem: video_subsystem,
+            canvas,
+            event_pump,
+            texture_creator: texture_creator,
         }
     }
 
-    pub fn clear_screen(&mut self) {
-        self.canvas.clear();
-    }
+    pub fn set_frame_rgb24(&mut self, rgb24: &Vec<Vec<u8>>, width: usize, height: usize) {
+        let mut texture = self
+            .texture_creator
+            .create_texture_streaming(PixelFormatEnum::RGB24, width as u32, height as u32)
+            .expect("Should provide a sdl2 texture");
 
-    pub fn draw(&mut self) {
-        self.canvas.present();
-    }
+        texture
+            .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                for y in 0..height {
+                    for x in 0..width {
+                        let offset = y * pitch + x * 3;
 
-    pub fn update(&mut self) {}
-
-    pub fn run(&mut self) {
-        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
-        self.canvas.clear();
-        self.canvas.present();
-
-        'running: loop {
-            self.canvas.clear();
-
-            for event in self.event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => {
-                        break 'running;
+                        buffer[offset] = rgb24[y][x * 3] as u8;
+                        buffer[offset + 1] = rgb24[y][x * 3 + 1] as u8;
+                        buffer[offset + 2] = rgb24[y][x * 3 + 2] as u8;
                     }
-                    _ => {}
                 }
-            }
+            })
+            .expect("Texture with lock success");
 
-            self.canvas.present();
+        self.canvas.clear();
+        self.canvas
+            .copy(&texture, None, None)
+            .expect("Canvas copy success");
+        self.canvas.present();
+    }
+
+    pub fn update(&mut self) -> Vec<Event> {
+        let mut events: Vec<Event> = Vec::new();
+
+        match self.event_pump.poll_event() {
+            Some(event) => {
+                events.push(event);
+            }
+            None => {}
         }
+
+        events
     }
 }

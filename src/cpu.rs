@@ -5,7 +5,7 @@ use rand::Rng;
 use crate::frame;
 use frame::Frame;
 
-const KEYPAD_SIZE: usize = 16;
+pub const KEYPAD_SIZE: usize = 16;
 const MEMORY_SIZE: usize = 4096;
 const REGISTER_SIZE: usize = 16;
 const STACK_SIZE: usize = 16;
@@ -37,7 +37,7 @@ pub struct Cpu {
     current_opcode: u16,
     // 60Hz timers.
     delay_timer: u8,
-    frame: Frame,
+    pub frame: Frame,
     i: u16,
     keypad: [bool; KEYPAD_SIZE],
     memory: [u8; MEMORY_SIZE],
@@ -106,12 +106,14 @@ impl Cpu {
             }
             // Return from subroutine
             (0x0, 0x0, 0xE, 0xE) => {
-                self.pc = self.stack[(self.stack_pointer - 1) as usize] as u16;
+                self.stack_pointer -= 1;
+                self.pc = self.stack[self.stack_pointer as usize] as u16;
                 self.next()
             }
             (0x1, _, _, _) => self.pc = nnn,
             (0x2, _, _, _) => {
-                self.stack[(self.stack_pointer - 1) as usize] = self.pc;
+                self.stack[self.stack_pointer as usize] = self.pc;
+                self.stack_pointer += 1;
                 self.pc = nnn;
             }
             (0x3, _, _, _) => {
@@ -291,10 +293,20 @@ impl Cpu {
             }
             _ => eprint!("Unknown instruction: {:?}", nibbles),
         }
+    }
 
-        self.frame.draw_to_stdout();
+    pub fn set_keypad(&mut self, keypad: Vec<bool>) {
+        for (i, key) in keypad.iter().enumerate() {
+            self.keypad[i] = *key;
+        }
+    }
 
-        // TODO: Update sound and delay timers.
+    pub fn try_decrement_delay_timer(&mut self) {
+        self.delay_timer -= 1;
+    }
+
+    pub fn try_decrement_sound_timer(&mut self) {
+        self.sound_timer -= 1;
     }
 
     fn load_rom(rom: &str) -> Vec<u8> {
