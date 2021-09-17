@@ -1,6 +1,5 @@
 mod cpu;
 mod frame;
-mod ui;
 
 use cpu::{Cpu, KEYPAD_SIZE};
 use sdl2::{event::Event, keyboard::Keycode};

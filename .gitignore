@@ -17,4 +17,5 @@ Cargo.lock
 # Misc
 
 **/roms/*
+!**/roms/.gitkeep
 SDL2.dll
