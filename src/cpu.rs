@@ -259,11 +259,21 @@ impl Cpu {
                 self.next()
             }
             (0xF, _, 0x2, 0x9) => {
-                // Set i to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                let digit = self.register[nibbles.1 as usize];
+                self.i = FONT_START_ADDRESS as u16 + (5 * digit) as u16;
                 self.next()
             }
             (0xF, _, 0x3, 0x3) => {
-                // Set i to the memory address of the sprite data corresponding to the hexadecimal digit stored in register VX
+                let val = self.register[nibbles.1 as usize];
+                let val_hundreds = val / 100;
+                let val_tens = (val / 10) % 10;
+                let val_ones = (val % 100) % 10;
+
+                self.memory[self.i as usize] = val_hundreds;
+                self.memory[self.i as usize + 1] = val_tens;
+                self.memory[self.i as usize] = val_ones;
+
+                self.next()
             }
             (0xF, _, 0x5, 0x5) => {
                 for i in 0..nibbles.1 {
